@@ -6,45 +6,7 @@ A full-stack habit tracking app with pastel dashboard, analytics, and MongoDB pe
 - **Frontend**: React 18 (Vite), custom CSS, Recharts
 - **Backend**: Node.js + Express.js
 - **Database**: MongoDB (Mongoose)
-- **Auth**: JWT (optional)
-
-## Project Structure
-```
-Habit tracker/
-├── client/    ← React frontend (Vite)
-└── server/    ← Express backend
-```
-
-## Setup & Run
-
-### Prerequisites
-- Node.js v18+
-- MongoDB running locally on port 27017  
-  OR update `MONGO_URI` in `server/.env` with your Atlas connection string
-
-### 1. Backend
-```bash
-cd server
-npm install
-npm run dev
-# → Server starts on http://localhost:5000
-```
-
-### 2. Frontend
-```bash
-cd client
-npm install
-npm run dev
-# → App starts on http://localhost:5173
-```
-
-## Environment Variables (`server/.env`)
-```
-PORT=5000
-MONGO_URI=mongodb://localhost:27017/habittracker
-JWT_SECRET=habittracker_super_secret_key_2024
-NODE_ENV=development
-```
+- **Auth**: JWT 
 
 ## API Reference
 
