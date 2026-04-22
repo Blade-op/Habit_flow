@@ -42,15 +42,10 @@ app.use('/api/admin', adminRoutes);
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'OK', timestamp: new Date() }));
 
-// ── Serve React build in production ──────────────────────────────────────────
-if (process.env.NODE_ENV === 'production') {
-  const clientDist = path.join(__dirname, '..', 'client', 'dist');
-  app.use(express.static(clientDist));
-  // SPA fallback — serve index.html for any non-API route
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(clientDist, 'index.html'));
-  });
-}
+// ── Root route for Render health checks ──────────────────────────────────────────
+app.get('/', (req, res) => {
+  res.send('HabitFlow API is running in production!');
+});
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
