@@ -135,11 +135,11 @@ export default function Dashboard() {
       {/* Stats Row */}
       <div className="stats-row">
         {/* Progress Ring */}
-        <div className="stat-card purple" style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-          <div style={{ position: 'relative', display: 'inline-flex' }}>
+        <div className="stat-card purple stat-card-progress" style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+          <div className="progress-ring-stat" style={{ position: 'relative', display: 'inline-flex', flexShrink: 0 }}>
             <ProgressRing percent={todayPct} size={80} stroke={7} color="#7c3aed" />
           </div>
-          <div>
+          <div className="stat-info">
             <div className="stat-label">Today's Progress</div>
             <div className="stat-value">
               {todayCompleted}

@@ -1668,7 +1668,13 @@ textarea.form-input {
     gap: 12px;
   }
   .stat-value { font-size: 1.6rem; }
-  .stat-card { padding: 16px; }
+  .stat-card { padding: 14px; }
+
+  /* Week nav breathing room */
+  .week-nav { margin-bottom: 12px; }
+
+  /* Habit grid wrapper: ensure full bleed with slight margin */
+  .habit-grid-wrapper { margin: 0 -2px; }
 
   /* Analytics */
   .insights-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1706,11 +1712,38 @@ textarea.form-input {
   .stats-row { grid-template-columns: 1fr 1fr; gap: 10px; }
   .stat-value { font-size: 1.4rem; }
 
+  /* Progress ring card: stack vertically so ring + text don't overflow */
+  .stat-card-progress {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+  /* Scale ring down slightly on tiny screens */
+  .progress-ring-stat svg { width: 60px !important; height: 60px !important; }
+
   .insights-grid { grid-template-columns: 1fr; }
   .week-nav-label { display: none; }
 
   .page-header-left h1 { font-size: 1.25rem; }
   .main-content { padding: 12px; padding-top: calc(var(--topbar-h) + 12px); }
+
+  /* Tighten stat card padding on very small screens */
+  .stat-card { padding: 12px; }
+  .stat-icon { font-size: 1.1rem; }
+  .stat-value { font-size: 1.3rem; }
+  .stat-label { font-size: 0.7rem; }
+
+  /* Week nav buttons: slightly smaller */
+  .week-nav-btn { width: 30px; height: 30px; font-size: 0.85rem; }
+
+  /* Habit grid: full bleed */
+  .habit-grid-wrapper { border-radius: var(--radius-sm); margin: 0; }
+
+  /* Day skip button: smaller text so it fits column header */
+  .day-skip-btn { font-size: 0.6rem; padding: 2px 5px; }
+
+  /* Page header: tighter */
+  .page-header { margin-bottom: 14px; gap: 8px; }
 }
 
 /* ════════════════════════════════════
