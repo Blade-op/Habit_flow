@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useHabits } from '../hooks/useHabits';
 import { useTracking } from '../hooks/useTracking';
@@ -40,24 +40,29 @@ export default function Dashboard() {
 
   const { habits, loading, addHabit, editHabit, removeHabit } = useHabits();
   const { startDate, endDate } = useMemo(() => getWeekRange(weekOffset), [weekOffset]);
-  const { records, isCompleted, toggle } = useTracking(startDate, endDate);
+  const { records, getStatus, isCompleted, isDaySkipped, toggle, skipDay } = useTracking(startDate, endDate);
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Today's stats
+  // Today's stats — exclude skipped from totals
   const todayStr = localDateStr(new Date());
   const todayDow = new Date().getDay();
   const todayHabits = habits.filter(
     (h) => h.frequency === 'daily' || (h.days && h.days.includes(todayDow))
   );
-  const todayCompleted = todayHabits.filter((h) => isCompleted(h._id, todayStr)).length;
-  const todayPct = todayHabits.length > 0 ? Math.round((todayCompleted / todayHabits.length) * 100) : 0;
 
-  // Weekly stats
-  const weekCompleted = records.filter((r) => r.completed).length;
+  const todayCompleted = todayHabits.filter((h) => getStatus(h._id, todayStr) === 'completed').length;
+  const todaySkipped   = todayHabits.filter((h) => getStatus(h._id, todayStr) === 'skipped').length;
+  const todayActive    = todayHabits.length - todaySkipped; // exclude skipped from denominator
+  const todayPct       = todayActive > 0 ? Math.round((todayCompleted / todayActive) * 100) : 0;
+
+  // Weekly stats — count only completed (not skipped)
+  const weekCompleted = records.filter((r) => (r.effectiveStatus || r.status) === 'completed').length;
+
+  // Streak — skipped days are transparent (don't break streak)
   const currentStreak = useMemo(() => {
     let streak = 0;
     const today = new Date();
@@ -68,12 +73,23 @@ export default function Dashboard() {
       const dow = d.getDay();
       const scheduled = habits.filter((h) => h.frequency === 'daily' || (h.days && h.days.includes(dow)));
       if (scheduled.length === 0) { streak++; continue; }
-      const done = scheduled.filter((h) => records.some((r) => r.habitId === h._id && r.date === ds && r.completed));
-      if (done.length === scheduled.length) streak++;
-      else break;
+
+      const statuses = scheduled.map((h) => getStatus(h._id, ds));
+      const allSkippedOrDone = statuses.every((s) => s === 'completed' || s === 'skipped');
+      const anyCompleted = statuses.some((s) => s === 'completed');
+      const allSkipped = statuses.every((s) => s === 'skipped');
+
+      if (allSkipped) {
+        // Day fully skipped — transparent, continue streak
+        continue;
+      } else if (allSkippedOrDone && anyCompleted) {
+        streak++;
+      } else {
+        break;
+      }
     }
     return streak;
-  }, [habits, records]);
+  }, [habits, records, getStatus]);
 
   const handleSave = async (formData) => {
     if (editingHabit) {
@@ -86,16 +102,22 @@ export default function Dashboard() {
     setEditingHabit(null);
   };
 
-  const handleEdit = (habit) => { setEditingHabit(habit); setModalOpen(true); };
+  const handleEdit = useCallback((habit) => {
+    setEditingHabit(habit);
+    setModalOpen(true);
+  }, []);
 
-  const handleDelete = async (id) => {
+  const handleDelete = useCallback(async (id) => {
     if (window.confirm('Delete this habit?')) {
       await removeHabit(id);
       showToast('Habit deleted.', 'error');
     }
-  };
+  }, [removeHabit]);
 
-  const openAddModal = () => { setEditingHabit(null); setModalOpen(true); };
+  const openAddModal = useCallback(() => {
+    setEditingHabit(null);
+    setModalOpen(true);
+  }, []);
 
   return (
     <div>
@@ -119,7 +141,15 @@ export default function Dashboard() {
           </div>
           <div>
             <div className="stat-label">Today's Progress</div>
-            <div className="stat-value">{todayCompleted}<span style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--text-muted)' }}>/{todayHabits.length}</span></div>
+            <div className="stat-value">
+              {todayCompleted}
+              <span style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--text-muted)' }}>/{todayActive}</span>
+            </div>
+            {todaySkipped > 0 && (
+              <div style={{ fontSize: '0.72rem', color: 'var(--amber)', marginTop: 2 }}>
+                ⏭ {todaySkipped} skipped today
+              </div>
+            )}
           </div>
         </div>
 
@@ -148,12 +178,15 @@ export default function Dashboard() {
       ) : (
         <CheckboxGrid
           habits={habits}
+          getStatus={getStatus}
           isCompleted={isCompleted}
           onToggle={toggle}
           onEdit={handleEdit}
           onDelete={handleDelete}
           weekOffset={weekOffset}
           onWeekChange={setWeekOffset}
+          onSkipDay={skipDay}
+          isDaySkipped={isDaySkipped}
         />
       )}
 

@@ -1,12 +1,37 @@
+import { memo } from 'react';
+
 // Returns YYYY-MM-DD in the user's LOCAL timezone (no UTC-shift)
 function localDateStr(date) {
+
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
 
-export default function HabitRow({ habit, weekDates, isCompleted, onToggle, onEdit, onDelete }) {
+// Visual config for each status
+const STATUS_CONFIG = {
+  completed: {
+    icon: '✓',
+    label: 'Completed',
+    className: 'checked',
+    nextLabel: 'Mark as Skipped',
+  },
+  skipped: {
+    icon: '⏭',
+    label: 'Skipped',
+    className: 'skipped',
+    nextLabel: 'Mark as Missed',
+  },
+  missed: {
+    icon: '',
+    label: 'Missed',
+    className: '',
+    nextLabel: 'Mark as Completed',
+  },
+};
+
+function HabitRow({ habit, weekDates, getStatus, onToggle, onEdit, onDelete }) {
   // Today's local date string for future-date blocking
   const todayStr = localDateStr(new Date());
 
@@ -31,9 +56,9 @@ export default function HabitRow({ habit, weekDates, isCompleted, onToggle, onEd
       {weekDates.map((date) => {
         const dateStr = localDateStr(date);
         const scheduled = isScheduled(date);
-        const completed = scheduled && isCompleted(habit._id, dateStr);
-        // Block interaction for any date strictly after today
+        const status = scheduled ? (getStatus ? getStatus(habit._id, dateStr) : 'missed') : null;
         const isFuture = dateStr > todayStr;
+        const config = STATUS_CONFIG[status] || STATUS_CONFIG.missed;
 
         return (
           <div className="habit-cell" key={dateStr}>
@@ -47,14 +72,22 @@ export default function HabitRow({ habit, weekDates, isCompleted, onToggle, onEd
                 />
               ) : (
                 <button
-                  className={`habit-checkbox${completed ? ' checked' : ''}`}
-                  style={completed ? { background: habit.color || '#a78bfa', boxShadow: `0 2px 8px ${habit.color || '#a78bfa'}50` } : {}}
+                  className={`habit-checkbox${config.className ? ' ' + config.className : ''}`}
+                  style={
+                    status === 'completed'
+                      ? { background: habit.color || '#a78bfa', boxShadow: `0 2px 8px ${habit.color || '#a78bfa'}50` }
+                      : status === 'skipped'
+                      ? { background: 'var(--amber)', boxShadow: '0 2px 8px rgba(251,191,36,0.4)' }
+                      : {}
+                  }
                   onClick={() => onToggle(habit._id, dateStr)}
-                  aria-label={`${completed ? 'Unmark' : 'Mark'} ${habit.title} on ${dateStr}`}
+                  aria-label={`${config.nextLabel} — ${habit.title} on ${dateStr}`}
                   id={`cb-${habit._id}-${dateStr}`}
-                  title={dateStr}
+                  title={`${config.label} — click to cycle status`}
                 >
-                  {completed && '✓'}
+                  <span style={{ color: status === 'missed' ? 'transparent' : 'white', fontSize: status === 'skipped' ? '0.7rem' : '0.85rem' }}>
+                    {config.icon}
+                  </span>
                 </button>
               )
             ) : (
@@ -76,3 +109,6 @@ export default function HabitRow({ habit, weekDates, isCompleted, onToggle, onEd
     </div>
   );
 }
+
+// Memoize — only re-renders when its own props change, not when sibling habits update
+export default memo(HabitRow);

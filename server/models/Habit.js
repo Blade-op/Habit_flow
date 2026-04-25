@@ -40,4 +40,8 @@ const HabitSchema = new mongoose.Schema({
   },
 });
 
+// Indexes for fast userId-based lookups (primary query pattern)
+HabitSchema.index({ userId: 1, createdAt: 1 });
+HabitSchema.index({ userId: 1, frequency: 1 });
+
 module.exports = mongoose.model('Habit', HabitSchema);

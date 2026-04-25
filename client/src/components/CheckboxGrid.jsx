@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import HabitRow from './HabitRow';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -25,36 +26,71 @@ function getWeekDates(weekOffset = 0) {
   });
 }
 
-function getDailyProgress(habits, weekDates, isCompleted) {
+/**
+ * Get scheduled habits for a specific date.
+ */
+function getScheduledHabits(habits, date) {
+  const dayOfWeek = date.getDay();
+  return habits.filter(
+    (habit) => habit.frequency === 'daily' || (habit.days && habit.days.includes(dayOfWeek))
+  );
+}
+
+/**
+ * Calculate daily progress percentage, excluding skipped from the denominator.
+ * Returns null when all habits are skipped (no active tracking).
+ */
+function getDailyProgress(habits, weekDates, getStatus) {
   return weekDates.map((date) => {
     const dateStr = localDateStr(date);
-    const dayOfWeek = date.getDay();
-    let scheduled = 0, completed = 0;
-    habits.forEach((habit) => {
-      const isScheduled = habit.frequency === 'daily' || (habit.days && habit.days.includes(dayOfWeek));
-      if (isScheduled) {
-        scheduled++;
-        if (isCompleted(habit._id, dateStr)) completed++;
-      }
+    const scheduled = getScheduledHabits(habits, date);
+    if (scheduled.length === 0) return { pct: 0, allSkipped: false };
+
+    let completed = 0;
+    let skipped = 0;
+    scheduled.forEach((habit) => {
+      const status = getStatus(habit._id, dateStr);
+      if (status === 'completed') completed++;
+      else if (status === 'skipped') skipped++;
     });
-    return scheduled === 0 ? 0 : Math.round((completed / scheduled) * 100);
+
+    const active = scheduled.length - skipped;
+    const allSkipped = skipped === scheduled.length;
+    const pct = active > 0 ? Math.round((completed / active) * 100) : null;
+
+    return { pct, allSkipped };
   });
 }
 
-export default function CheckboxGrid({
+function CheckboxGrid({
   habits,
-  isCompleted,
+  getStatus,
+  isCompleted, // legacy — ignored if getStatus is present
   onToggle,
   onEdit,
   onDelete,
   weekOffset,
   onWeekChange,
+  onSkipDay,
+  isDaySkipped,
 }) {
   const weekDates = getWeekDates(weekOffset);
   const todayStr = localDateStr(new Date());
-  const dailyProgress = getDailyProgress(habits, weekDates, isCompleted);
+
+  // Resolve which status getter to use (supports legacy isCompleted prop)
+  const resolvedGetStatus = getStatus || ((habitId, dateStr) =>
+    isCompleted && isCompleted(habitId, dateStr) ? 'completed' : 'missed'
+  );
+
+  const dailyProgress = getDailyProgress(habits, weekDates, resolvedGetStatus);
 
   const weekLabel = `${MONTH_SHORT[weekDates[0].getMonth()]} ${weekDates[0].getDate()} – ${MONTH_SHORT[weekDates[6].getMonth()]} ${weekDates[6].getDate()}, ${weekDates[0].getFullYear()}`;
+
+  const handleSkipDay = (dateStr, date) => {
+    if (!onSkipDay) return;
+    const scheduledHabits = getScheduledHabits(habits, date);
+    onSkipDay(dateStr, scheduledHabits);
+  };
 
   return (
     <div>
@@ -79,10 +115,30 @@ export default function CheckboxGrid({
             {weekDates.map((date) => {
               const dateStr = localDateStr(date);
               const isToday = dateStr === todayStr;
+              const isFuture = dateStr > todayStr;
+              const scheduledHabits = getScheduledHabits(habits, date);
+              const daySkipped = isDaySkipped ? isDaySkipped(dateStr, scheduledHabits) : false;
+
               return (
-                <div key={dateStr} className={`grid-header-cell${isToday ? ' today' : ''}`}>
+                <div
+                  key={dateStr}
+                  className={`grid-header-cell${isToday ? ' today' : ''}${daySkipped ? ' day-skipped' : ''}`}
+                >
                   <div>{DAY_LABELS[date.getDay()]}</div>
                   <div style={{ fontSize: '1rem', fontWeight: 800, marginTop: '2px' }}>{date.getDate()}</div>
+
+                  {/* Skip Day button — only shown for past/present dates with scheduled habits */}
+                  {!isFuture && habits.length > 0 && scheduledHabits.length > 0 && onSkipDay && (
+                    <button
+                      className={`day-skip-btn${daySkipped ? ' active' : ''}`}
+                      onClick={() => handleSkipDay(dateStr, date)}
+                      id={`skip-day-${dateStr}`}
+                      aria-label={daySkipped ? `Day ${dateStr} already skipped` : `Skip all habits on ${dateStr}`}
+                      title={daySkipped ? 'Day skipped — click to manage' : 'Skip all habits today'}
+                    >
+                      {daySkipped ? '⏭ Skipped' : 'Skip Day'}
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -102,7 +158,7 @@ export default function CheckboxGrid({
                 key={habit._id}
                 habit={habit}
                 weekDates={weekDates}
-                isCompleted={isCompleted}
+                getStatus={resolvedGetStatus}
                 onToggle={onToggle}
                 onEdit={onEdit}
                 onDelete={onDelete}
@@ -116,11 +172,15 @@ export default function CheckboxGrid({
               <div className="grid-progress-cell" style={{ paddingLeft: '20px', justifyContent: 'flex-start' }}>
                 <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>DAILY %</span>
               </div>
-              {dailyProgress.map((pct, i) => (
+              {dailyProgress.map(({ pct, allSkipped }, i) => (
                 <div className="grid-progress-cell" key={i}>
-                  <span className={`progress-pill${pct === 100 ? ' full' : pct === 0 ? ' zero' : ''}`}>
-                    {pct}%
-                  </span>
+                  {allSkipped ? (
+                    <span className="progress-pill skipped-pill" title="All habits skipped">⏭</span>
+                  ) : (
+                    <span className={`progress-pill${pct === 100 ? ' full' : pct === 0 ? ' zero' : ''}`}>
+                      {pct ?? 0}%
+                    </span>
+                  )}
                 </div>
               ))}
               <div className="grid-progress-cell" />
@@ -131,3 +191,6 @@ export default function CheckboxGrid({
     </div>
   );
 }
+
+// Memoize — avoids re-rendering on parent state changes unrelated to habits/tracking
+export default memo(CheckboxGrid);

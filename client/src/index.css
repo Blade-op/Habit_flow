@@ -637,6 +637,18 @@ ul { list-style: none; }
   transform: scale(1.05);
 }
 
+/* ── Skipped state ── */
+.habit-checkbox.skipped {
+  border-color: transparent;
+  color: white;
+  transform: scale(1.05);
+}
+
+.habit-checkbox.skipped:hover {
+  filter: brightness(1.1);
+  transform: scale(1.08);
+}
+
 .habit-checkbox.not-scheduled {
   background: var(--bg-secondary);
   border-style: dashed;
@@ -704,6 +716,61 @@ ul { list-style: none; }
 
 .progress-pill.full { background: var(--green-soft); color: #16a34a; }
 .progress-pill.zero { background: var(--red-soft); color: #dc2626; }
+.progress-pill.skipped-pill {
+  background: var(--amber-soft);
+  color: #b45309;
+  font-size: 0.8rem;
+  letter-spacing: 0;
+}
+
+/* ── Day Skip Button (in column header) ── */
+.day-skip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.day-skip-btn:hover {
+  background: var(--amber-soft);
+  border-color: var(--amber);
+  color: #92400e;
+  transform: scale(1.04);
+}
+
+.day-skip-btn.active {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: white;
+  box-shadow: 0 2px 8px rgba(251,191,36,0.4);
+}
+
+.day-skip-btn.active:hover {
+  background: #f59e0b;
+  filter: brightness(0.95);
+}
+
+/* ── Day-skipped column header dimming ── */
+.grid-header-cell.day-skipped {
+  background: rgba(251, 191, 36, 0.08);
+  position: relative;
+}
+
+.grid-header-cell.day-skipped > div:first-child,
+.grid-header-cell.day-skipped > div:nth-child(2) {
+  opacity: 0.55;
+}
 
 /* ════════════════════════════════════
    PROGRESS RING
@@ -1644,4 +1711,31 @@ textarea.form-input {
 
   .page-header-left h1 { font-size: 1.25rem; }
   .main-content { padding: 12px; padding-top: calc(var(--topbar-h) + 12px); }
+}
+
+/* ════════════════════════════════════
+   SKELETON LOADER
+   (used by PageSkeleton in App.jsx during lazy-chunk loading)
+   ════════════════════════════════════ */
+
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 25%,
+    var(--border)       50%,
+    var(--bg-secondary) 75%
+  );
+  background-size: 600px 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-title {
+  height: 28px;
+  border-radius: 8px;
 }

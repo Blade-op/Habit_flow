@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const mongoose = require('mongoose');
 const path = require('path');
 
@@ -29,6 +30,8 @@ app.use(cors({
   },
   credentials: true,
 }));
+// Gzip compress all responses — reduces payload ~60-80%
+app.use(compression());
 app.use(express.json());
 app.use(authMiddleware);
 

@@ -25,7 +25,7 @@ function StatCard({ icon, label, value, sub, color }) {
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="card card-sm" style={{ minWidth: 120, fontSize: '0.82rem' }}>
+    <div className="card card-sm" style={{ minWidth: 140, fontSize: '0.82rem' }}>
       <div style={{ fontWeight: 700, marginBottom: 4, color: 'var(--text-primary)' }}>{label}</div>
       {payload.map((p, i) => (
         <div key={i} style={{ color: p.color }}>
@@ -72,11 +72,28 @@ export default function Analytics() {
   // dailyData only contains dates where ≥1 habit was scheduled (backend filtered)
   const dailySlice = view === '7d' ? data.dailyData.slice(-7) : data.dailyData;
 
+  // 3-segment pie: Completed / Missed / Skipped
+  const totalMissed  = data.totalMissed  ?? Math.max(0, (data.totalScheduled ?? 0) - (data.totalCompleted ?? 0) - (data.totalSkipped ?? 0));
+  const totalSkipped = data.totalSkipped ?? 0;
+
   const pieData = [
     { name: 'Completed', value: data.totalCompleted },
-    { name: 'Missed', value: Math.max(0, data.totalScheduled - data.totalCompleted) },
-  ];
+    { name: 'Missed',    value: totalMissed },
+    { name: 'Skipped',   value: totalSkipped },
+  ].filter((seg) => seg.value > 0);
 
+  const PIE_COLORS = ['#a78bfa', '#f1efff', '#fbbf24'];
+
+  // Overall rate display — null means "No active tracking"
+  const overallRateDisplay =
+    data.overallRate === null || data.overallRate === undefined
+      ? '—'
+      : `${data.overallRate}%`;
+
+  const overallRateSub =
+    data.overallRate === null || data.overallRate === undefined
+      ? 'No active tracking yet'
+      : 'Based on active days only';
 
   return (
     <div>
@@ -100,29 +117,69 @@ export default function Analytics() {
         </div>
       </div>
 
-      {/* Insight stat cards */}
+      {/* Insight stat cards — now 5 cards including Skipped */}
       <div className="insights-grid mb-24">
-        <StatCard icon="🎯" label="Overall Rate" value={`${data.overallRate}%`} sub="Last 30 days" color="#7c3aed" />
-        <StatCard icon="✅" label="Completions" value={data.totalCompleted} sub={`of ${data.totalScheduled} expected`} color="#2dd4bf" />
         <StatCard
-          icon="🏆" label="Most Consistent"
-          value={data.mostConsistent?.title || '—'}
-          sub={data.mostConsistent ? `${data.mostConsistent.completionRate}% completion` : ''}
+          icon="🎯"
+          label="Overall Rate"
+          value={overallRateDisplay}
+          sub={overallRateSub}
+          color="#7c3aed"
+        />
+        <StatCard
+          icon="✅"
+          label="Completed"
+          value={data.totalCompleted}
+          sub={`of ${(data.totalCompleted + totalMissed)} active days`}
+          color="#2dd4bf"
+        />
+        <StatCard
+          icon="❌"
+          label="Missed"
+          value={totalMissed}
+          sub="Active days not completed"
+          color="#f87171"
+        />
+        <StatCard
+          icon="⏭"
+          label="Skipped"
+          value={totalSkipped}
+          sub="Excluded from rate"
           color="#fbbf24"
         />
         <StatCard
-          icon="⚠️" label="Needs Attention"
+          icon="🏆"
+          label="Most Consistent"
+          value={data.mostConsistent?.title || '—'}
+          sub={
+            data.mostConsistent
+              ? data.mostConsistent.completionRate !== null
+                ? `${data.mostConsistent.completionRate}% completion`
+                : 'No active days yet'
+              : ''
+          }
+          color="#fbbf24"
+        />
+        <StatCard
+          icon="⚠️"
+          label="Needs Attention"
           value={data.leastFollowed?.title || '—'}
-          sub={data.leastFollowed ? `${data.leastFollowed.completionRate}% completion` : ''}
+          sub={
+            data.leastFollowed
+              ? data.leastFollowed.completionRate !== null
+                ? `${data.leastFollowed.completionRate}% completion`
+                : 'No active days yet'
+              : ''
+          }
           color="#f472b6"
         />
       </div>
 
       <div className="analytics-grid">
-        {/* Bar chart — Daily completion */}
+        {/* Bar chart — Daily completion with skipped */}
         <div className="chart-card" style={{ gridColumn: 'span 2' }}>
           <h3>📅 Daily Completion</h3>
-          <p>Number of habits completed each day</p>
+          <p>Completed, missed, and skipped habits each day</p>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={dailySlice} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -131,15 +188,16 @@ export default function Analytics() {
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: '0.8rem' }} />
               <Bar dataKey="completed" name="Completed" fill="#a78bfa" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="scheduled" name="Scheduled" fill="#e8e3ff" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="missed"    name="Missed"    fill="#e8e3ff" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="skipped"   name="Skipped"   fill="#fbbf24" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Pie chart */}
+        {/* Pie chart — 3 segments */}
         <div className="chart-card">
-          <h3>🍩 Completion Split</h3>
-          <p>Completed vs missed over 30 days</p>
+          <h3>🍩 Status Split</h3>
+          <p>Completed / Missed / Skipped over 30 days</p>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie
@@ -153,9 +211,10 @@ export default function Analytics() {
                 label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                 labelLine={false}
               >
-                {pieData.map((_, i) => (
-                  <Cell key={i} fill={i === 0 ? '#a78bfa' : '#f1efff'} />
-                ))}
+                {pieData.map((entry, i) => {
+                  const colorMap = { Completed: '#a78bfa', Missed: '#e8e3ff', Skipped: '#fbbf24' };
+                  return <Cell key={i} fill={colorMap[entry.name] || PASTEL[i]} />;
+                })}
               </Pie>
               <Tooltip formatter={(v) => [`${v} days`, '']} />
             </PieChart>
@@ -165,7 +224,7 @@ export default function Analytics() {
         {/* Line chart — Completion rate */}
         <div className="chart-card" style={{ gridColumn: 'span 2' }}>
           <h3>📈 Completion Rate Trend</h3>
-          <p>Daily completion percentage over time</p>
+          <p>Daily completion % (skipped days excluded from calculation)</p>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={dailySlice} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -180,6 +239,7 @@ export default function Analytics() {
                 strokeWidth={2.5}
                 dot={{ r: 3, fill: '#f472b6' }}
                 activeDot={{ r: 6 }}
+                connectNulls
               />
             </LineChart>
           </ResponsiveContainer>
@@ -188,26 +248,33 @@ export default function Analytics() {
         {/* Habit-wise performance */}
         <div className="chart-card">
           <h3>🌱 Habit Performance</h3>
-          <p>Completion rate per habit</p>
+          <p>Completion rate per habit (active days only)</p>
           <div className="habit-perf-list">
             {data.habitStats.length === 0 && (
               <p className="text-muted text-center" style={{ padding: '20px 0' }}>No habits tracked yet</p>
             )}
             {data.habitStats
-              .sort((a, b) => b.completionRate - a.completionRate)
+              .sort((a, b) => (b.completionRate ?? -1) - (a.completionRate ?? -1))
               .map((h, i) => (
                 <div className="habit-perf-item" key={h.habitId}>
                   <div className="habit-perf-dot" style={{ background: h.color || PASTEL[i % PASTEL.length] }} />
                   <div className="habit-perf-info">
                     <div className="habit-perf-name">
                       <span>{h.title}</span>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{h.completionRate}%</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {h.skippedDays > 0 && (
+                          <span style={{ color: 'var(--amber)', fontSize: '0.72rem' }}>⏭ {h.skippedDays}</span>
+                        )}
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                          {h.completionRate !== null ? `${h.completionRate}%` : '—'}
+                        </span>
+                      </span>
                     </div>
                     <div className="habit-perf-bar-bg">
                       <div
                         className="habit-perf-bar-fill"
                         style={{
-                          width: `${h.completionRate}%`,
+                          width: `${h.completionRate ?? 0}%`,
                           background: h.color || PASTEL[i % PASTEL.length],
                         }}
                       />
@@ -215,6 +282,11 @@ export default function Analytics() {
                     {h.streak > 0 && (
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 3 }}>
                         🔥 {h.streak} day streak
+                      </div>
+                    )}
+                    {h.completionRate === null && (
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 3 }}>
+                        No active tracking yet
                       </div>
                     )}
                   </div>
