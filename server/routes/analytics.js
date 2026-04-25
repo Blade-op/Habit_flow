@@ -24,7 +24,7 @@ function setCached(userId, data) {
 function bustCache(userId) {
   cache.delete(String(userId));
 }
-module.exports.bustCache = bustCache;
+
 
 // Returns YYYY-MM-DD in the SERVER'S local timezone (avoids UTC-shift)
 function toDateStr(date) {
@@ -286,4 +286,7 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Export router as default + bustCache as named export
+// NOTE: module.exports = router would overwrite bustCache, so we attach it after.
 module.exports = router;
+module.exports.bustCache = bustCache;
